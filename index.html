@@ -125,8 +125,14 @@
             box-shadow: 0 0 8px rgba(0, 255, 204, 0.3);
         }
 
-        .btn-add {
+        .form-actions {
             grid-column: 1 / -1;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-add {
+            flex: 1;
             background: transparent;
             border: 1px solid var(--neon-cyan);
             color: var(--neon-cyan);
@@ -143,6 +149,25 @@
             background: var(--neon-cyan);
             color: #000;
             box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--neon-pink);
+            color: var(--neon-pink);
+            padding: 12px 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .btn-cancel:hover {
+            background: var(--neon-pink);
+            color: #fff;
         }
 
         /* Controls */
@@ -352,6 +377,21 @@
             color: var(--neon-cyan);
         }
 
+        .btn-edit {
+            background: transparent;
+            border: 1px solid var(--neon-yellow);
+            color: var(--neon-yellow);
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .btn-edit:hover {
+            background: var(--neon-yellow);
+            color: #000;
+        }
+
         .btn-del {
             background: transparent;
             border: 1px solid rgba(255, 0, 127, 0.5);
@@ -359,6 +399,7 @@
             padding: 6px 10px;
             cursor: pointer;
             border-radius: 4px;
+            font-size: 0.75rem;
         }
 
         .btn-del:hover {
@@ -404,8 +445,9 @@
 
     <!-- Form -->
     <div class="form-panel">
-        <h2>+ ADD NEW ENTRY</h2>
+        <h2 id="form-title">+ ADD NEW ENTRY</h2>
         <form id="movie-form" class="form-grid">
+            <input type="hidden" id="edit-id">
             <select id="type" onchange="toggleSeasonField()">
                 <option value="Movie">Movie</option>
                 <option value="TV Series">TV Series</option>
@@ -429,7 +471,10 @@
                 <option value="yes">Favorite: Yes ❤️</option>
             </select>
 
-            <button type="submit" class="btn-add">ADD TO VAULT</button>
+            <div class="form-actions">
+                <button type="submit" id="btn-submit" class="btn-add">ADD TO VAULT</button>
+                <button type="button" id="btn-cancel" class="btn-cancel" onclick="resetForm()">CANCEL</button>
+            </div>
         </form>
     </div>
 
@@ -475,30 +520,86 @@
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         
+        const editId = document.getElementById('edit-id').value;
         const type = document.getElementById('type').value;
         const title = document.getElementById('title').value;
         const season = document.getElementById('season').value;
 
-        const newItem = {
-            id: Date.now(),
-            type: type,
-            title: title,
-            season: type === 'TV Series' ? (season || 'Season 1') : '',
-            year: document.getElementById('year').value || 'N/A',
-            genre: document.getElementById('genre').value || 'N/A',
-            imdb: document.getElementById('imdb').value || 'N/A',
-            myrating: document.getElementById('myrating').value || 'N/A',
-            poster: document.getElementById('poster').value,
-            watchUrl: document.getElementById('watchUrl').value || '',
-            status: document.getElementById('status').value,
-            favorite: document.getElementById('favorite').value === 'yes'
-        };
+        if (editId) {
+            // Edit existing item
+            const index = movies.findIndex(m => m.id == editId);
+            if (index !== -1) {
+                movies[index] = {
+                    ...movies[index],
+                    type: type,
+                    title: title,
+                    season: type === 'TV Series' ? (season || 'Season 1') : '',
+                    year: document.getElementById('year').value || 'N/A',
+                    genre: document.getElementById('genre').value || 'N/A',
+                    imdb: document.getElementById('imdb').value || 'N/A',
+                    myrating: document.getElementById('myrating').value || 'N/A',
+                    poster: document.getElementById('poster').value,
+                    watchUrl: document.getElementById('watchUrl').value || '',
+                    status: document.getElementById('status').value,
+                    favorite: document.getElementById('favorite').value === 'yes'
+                };
+            }
+        } else {
+            // Add new item
+            const newItem = {
+                id: Date.now(),
+                type: type,
+                title: title,
+                season: type === 'TV Series' ? (season || 'Season 1') : '',
+                year: document.getElementById('year').value || 'N/A',
+                genre: document.getElementById('genre').value || 'N/A',
+                imdb: document.getElementById('imdb').value || 'N/A',
+                myrating: document.getElementById('myrating').value || 'N/A',
+                poster: document.getElementById('poster').value,
+                watchUrl: document.getElementById('watchUrl').value || '',
+                status: document.getElementById('status').value,
+                favorite: document.getElementById('favorite').value === 'yes'
+            };
+            movies.push(newItem);
+        }
 
-        movies.push(newItem);
         saveAndRender();
-        form.reset();
-        toggleSeasonField();
+        resetForm();
     });
+
+    function editMovie(id) {
+        const movie = movies.find(m => m.id === id);
+        if (!movie) return;
+
+        document.getElementById('edit-id').value = movie.id;
+        document.getElementById('type').value = movie.type;
+        toggleSeasonField();
+        document.getElementById('title').value = movie.title;
+        if (movie.type === 'TV Series') document.getElementById('season').value = movie.season;
+        document.getElementById('year').value = movie.year !== 'N/A' ? movie.year : '';
+        document.getElementById('genre').value = movie.genre !== 'N/A' ? movie.genre : '';
+        document.getElementById('imdb').value = movie.imdb !== 'N/A' ? movie.imdb : '';
+        document.getElementById('myrating').value = movie.myrating !== 'N/A' ? movie.myrating : '';
+        document.getElementById('poster').value = movie.poster;
+        document.getElementById('watchUrl').value = movie.watchUrl || '';
+        document.getElementById('status').value = movie.status;
+        document.getElementById('favorite').value = movie.favorite ? 'yes' : 'no';
+
+        document.getElementById('form-title').textContent = '✏️ EDIT ENTRY';
+        document.getElementById('btn-submit').textContent = 'UPDATE VAULT';
+        document.getElementById('btn-cancel').style.display = 'block';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        form.reset();
+        document.getElementById('edit-id').value = '';
+        document.getElementById('form-title').textContent = '+ ADD NEW ENTRY';
+        document.getElementById('btn-submit').textContent = 'ADD TO VAULT';
+        document.getElementById('btn-cancel').style.display = 'none';
+        toggleSeasonField();
+    }
 
     function saveAndRender() {
         localStorage.setItem('media_vault_v3', JSON.stringify(movies));
@@ -589,6 +690,7 @@
                             <button class="btn-toggle" onclick="toggleStatus(${m.id})">
                                 ${m.status === 'Watched' ? 'Unwatch' : 'Mark Watched'}
                             </button>
+                            <button class="btn-edit" onclick="editMovie(${m.id})">✎ EDIT</button>
                             <button class="btn-del" onclick="deleteMovie(${m.id})">✕</button>
                         </div>
                     </div>
