@@ -227,7 +227,7 @@
 
         .movie-poster {
             width: 100%;
-            height: 300px;
+            height: 280px;
             object-fit: cover;
             background: #111;
         }
@@ -237,6 +237,17 @@
             display: flex;
             flex-direction: column;
             flex: 1;
+        }
+
+        .type-badge {
+            font-size: 0.7rem;
+            background: #223a4a;
+            color: var(--neon-cyan);
+            padding: 2px 6px;
+            border-radius: 3px;
+            align-self: flex-start;
+            margin-bottom: 6px;
+            text-transform: uppercase;
         }
 
         .movie-title {
@@ -252,7 +263,7 @@
         .movie-meta {
             font-size: 0.8rem;
             color: var(--text-dim);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
         }
@@ -278,6 +289,7 @@
             font-weight: bold;
             text-align: center;
             margin-bottom: 10px;
+            letter-spacing: 1px;
         }
 
         .status-unwatched {
@@ -341,14 +353,14 @@
 <div class="container">
     <header>
         <h1>// MOVIE VAULT</h1>
-        <p>Advanced Movie Collection Manager</p>
+        <p>Movies & TV Series Collection Tracker</p>
     </header>
 
     <!-- Stats -->
     <div class="stats-grid">
         <div class="stat-card">
             <h3 id="stat-total">0</h3>
-            <p>Total Movies</p>
+            <p>Total Items</p>
         </div>
         <div class="stat-card">
             <h3 id="stat-unwatched">0</h3>
@@ -364,11 +376,16 @@
         </div>
     </div>
 
-    <!-- Form (Includes Sheet Columns) -->
+    <!-- Form -->
     <div class="form-panel">
         <h2>+ ADD NEW ENTRY</h2>
         <form id="movie-form" class="form-grid">
-            <input type="text" id="title" placeholder="Movie Name *" required>
+            <select id="type" onchange="toggleSeasonField()">
+                <option value="Movie">Movie</option>
+                <option value="TV Series">TV Series</option>
+            </select>
+            <input type="text" id="title" placeholder="Title Name *" required>
+            <input type="text" id="season" placeholder="Season (e.g. Season 1)" style="display:none;">
             <input type="text" id="year" placeholder="Year (e.g. 2024)">
             <input type="text" id="genre" placeholder="Genre (Action, Sci-Fi)">
             <input type="text" id="imdb" placeholder="IMDb Rating (e.g. 8.8)">
@@ -385,7 +402,7 @@
                 <option value="yes">Favorite: Yes ❤️</option>
             </select>
 
-            <button type="submit" class="btn-add">ADD TO DATABASE</button>
+            <button type="submit" class="btn-add">ADD TO VAULT</button>
         </form>
     </div>
 
@@ -393,6 +410,8 @@
     <div class="controls-bar">
         <div class="filter-tabs">
             <button class="tab-btn active" onclick="setFilter('all')">All</button>
+            <button class="tab-btn" onclick="setFilter('Movie')">Movies</button>
+            <button class="tab-btn" onclick="setFilter('TV Series')">TV Series</button>
             <button class="tab-btn" onclick="setFilter('Unwatched')">To Watch</button>
             <button class="tab-btn" onclick="setFilter('Watched')">Watched</button>
             <button class="tab-btn" onclick="setFilter('fav')">Favorites ❤️</button>
@@ -407,18 +426,37 @@
 </div>
 
 <script>
-    let movies = JSON.parse(localStorage.getItem('cyber_movies_v2')) || [];
+    let movies = JSON.parse(localStorage.getItem('media_vault_v3')) || [];
     let currentFilter = 'all';
 
     const form = document.getElementById('movie-form');
     const grid = document.getElementById('movie-grid');
 
+    function toggleSeasonField() {
+        const type = document.getElementById('type').value;
+        const seasonInput = document.getElementById('season');
+        if (type === 'TV Series') {
+            seasonInput.style.display = 'block';
+            seasonInput.required = true;
+        } else {
+            seasonInput.style.display = 'none';
+            seasonInput.required = false;
+            seasonInput.value = '';
+        }
+    }
+
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         
-        const newMovie = {
+        const type = document.getElementById('type').value;
+        const title = document.getElementById('title').value;
+        const season = document.getElementById('season').value;
+
+        const newItem = {
             id: Date.now(),
-            title: document.getElementById('title').value,
+            type: type,
+            title: title,
+            season: type === 'TV Series' ? (season || 'Season 1') : '',
             year: document.getElementById('year').value || 'N/A',
             genre: document.getElementById('genre').value || 'N/A',
             imdb: document.getElementById('imdb').value || 'N/A',
@@ -428,13 +466,14 @@
             favorite: document.getElementById('favorite').value === 'yes'
         };
 
-        movies.push(newMovie);
+        movies.push(newItem);
         saveAndRender();
         form.reset();
+        toggleSeasonField();
     });
 
     function saveAndRender() {
-        localStorage.setItem('cyber_movies_v2', JSON.stringify(movies));
+        localStorage.setItem('media_vault_v3', JSON.stringify(movies));
         updateStats();
         renderMovies();
     }
@@ -481,6 +520,8 @@
             const matchesSearch = m.title.toLowerCase().includes(searchVal) || m.genre.toLowerCase().includes(searchVal);
             
             let matchesTab = true;
+            if (currentFilter === 'Movie') matchesTab = m.type === 'Movie';
+            if (currentFilter === 'TV Series') matchesTab = m.type === 'TV Series';
             if (currentFilter === 'Unwatched') matchesTab = m.status === 'Unwatched';
             if (currentFilter === 'Watched') matchesTab = m.status === 'Watched';
             if (currentFilter === 'fav') matchesTab = m.favorite === true;
@@ -496,8 +537,9 @@
         grid.innerHTML = filtered.map(m => `
             <div class="movie-card">
                 <button class="fav-btn ${m.favorite ? 'active' : ''}" onclick="toggleFav(${m.id})">♥</button>
-                <img src="${m.poster}" alt="${m.title}" class="movie-poster" onerror="this.src='https://via.placeholder.com/240x300?text=NO+POSTER'">
+                <img src="${m.poster}" alt="${m.title}" class="movie-poster" onerror="this.src='https://via.placeholder.com/240x280?text=NO+POSTER'">
                 <div class="movie-info">
+                    <span class="type-badge">${m.type} ${m.season ? '• ' + m.season : ''}</span>
                     <h3 class="movie-title" title="${m.title}">${m.title}</h3>
                     <div class="movie-meta">
                         <span>${m.genre}</span>
