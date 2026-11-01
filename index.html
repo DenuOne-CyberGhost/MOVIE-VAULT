@@ -41,7 +41,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         header h1 {
@@ -56,6 +56,30 @@
             color: var(--text-dim);
             font-size: 0.9rem;
             margin-top: 5px;
+        }
+
+        /* Backup Controls Bar */
+        .backup-bar {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .btn-backup {
+            background: transparent;
+            border: 1px dashed var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-backup:hover {
+            background: rgba(0, 255, 204, 0.1);
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.3);
         }
 
         /* Stats Panel */
@@ -203,9 +227,19 @@
             background: rgba(0, 255, 204, 0.05);
         }
 
+        .search-sort-group {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            max-width: 450px;
+        }
+
         .search-box {
             flex: 1;
-            max-width: 300px;
+        }
+
+        .sort-box {
+            width: 160px;
         }
 
         /* Movie Grid */
@@ -423,6 +457,13 @@
         <p>Movies & TV Series Collection Tracker</p>
     </header>
 
+    <!-- Backup & Restore Bar -->
+    <div class="backup-bar">
+        <button class="btn-backup" onclick="exportData()">💾 Export Backup (Download)</button>
+        <button class="btn-backup" onclick="document.getElementById('import-file').click()">📂 Import Backup</button>
+        <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+    </div>
+
     <!-- Stats -->
     <div class="stats-grid">
         <div class="stat-card">
@@ -488,8 +529,18 @@
             <button class="tab-btn" onclick="setFilter('Watched')">Watched</button>
             <button class="tab-btn" onclick="setFilter('fav')">Favorites ❤️</button>
         </div>
-        <div class="search-box">
-            <input type="text" id="search" placeholder="Search title or genre..." oninput="renderMovies()">
+        <div class="search-sort-group">
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Search title or genre..." oninput="renderMovies()">
+            </div>
+            <div class="sort-box">
+                <select id="sort-by" onchange="renderMovies()">
+                    <option value="newest">Sort: Newest</option>
+                    <option value="imdb">Sort: IMDb Rating</option>
+                    <option value="title">Sort: Title (A-Z)</option>
+                    <option value="year">Sort: Year</option>
+                </select>
+            </div>
         </div>
     </div>
 
@@ -526,7 +577,6 @@
         const season = document.getElementById('season').value;
 
         if (editId) {
-            // Edit existing item
             const index = movies.findIndex(m => m.id == editId);
             if (index !== -1) {
                 movies[index] = {
@@ -545,7 +595,6 @@
                 };
             }
         } else {
-            // Add new item
             const newItem = {
                 id: Date.now(),
                 type: type,
@@ -601,6 +650,39 @@
         toggleSeasonField();
     }
 
+    // Export Data (Download JSON)
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(movies, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "media_vault_backup.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    // Import Data (Upload JSON)
+    function importData(event) {
+        const fileReader = new FileReader();
+        if (event.target.files[0]) {
+            fileReader.readAsText(event.target.files[0], "UTF-8");
+            fileReader.onload = (e) => {
+                try {
+                    const importedMovies = JSON.parse(e.target.result);
+                    if (Array.isArray(importedMovies)) {
+                        movies = importedMovies;
+                        saveAndRender();
+                        alert("Backup successfully restored! 🎉");
+                    } else {
+                        alert("Invalid backup file format!");
+                    }
+                } catch (error) {
+                    alert("Error reading file!");
+                }
+            };
+        }
+    }
+
     function saveAndRender() {
         localStorage.setItem('media_vault_v3', JSON.stringify(movies));
         updateStats();
@@ -644,6 +726,7 @@
 
     function renderMovies() {
         const searchVal = document.getElementById('search').value.toLowerCase();
+        const sortBy = document.getElementById('sort-by').value;
         
         let filtered = movies.filter(m => {
             const matchesSearch = m.title.toLowerCase().includes(searchVal) || m.genre.toLowerCase().includes(searchVal);
@@ -656,6 +739,23 @@
             if (currentFilter === 'fav') matchesTab = m.favorite === true;
 
             return matchesSearch && matchesTab;
+        });
+
+        // Sorting Logic
+        filtered.sort((a, b) => {
+            if (sortBy === 'imdb') {
+                const ratingA = parseFloat(a.imdb) || 0;
+                const ratingB = parseFloat(b.imdb) || 0;
+                return ratingB - ratingA;
+            } else if (sortBy === 'title') {
+                return a.title.localeCompare(b.title);
+            } else if (sortBy === 'year') {
+                const yearA = parseInt(a.year) || 0;
+                const yearB = parseInt(b.year) || 0;
+                return yearB - yearB;
+            } else {
+                return b.id - a.id;
+            }
         });
 
         if (filtered.length === 0) {
